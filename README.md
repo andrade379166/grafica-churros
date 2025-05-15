@@ -1,2 +1,2 @@
-# grafica-churros
-Una librería para graficar churros (y otras cosas)
+# GraficaChurros
+> _Una librería para graficar churros (y otras cosas)._
