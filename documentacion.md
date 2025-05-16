@@ -7,7 +7,7 @@ _Escrita por Andrade. Última vez actualizada el 15 de mayo de 2025._
 > _A pesar de la sección de [Guía de uso](#guía-de-uso) en la documentación, esta no describe todo lo que
 > toda la librería es capaz de hacer, especialmente con futuras versiones de la librería.
 > La documentación no es un tutorial, es sólo un libro de referencia, programar siempre es
-> a base de prueba y error peleando con la computadora. No olvide eso._
+> a base de prueba y error peleando contra la computadora. No olvide eso._
 >
 > _Si hay alguna duda sobre como se usa alguna característica o función de la librería, puede ponerse en
 > contacto conmigo, aunque le recomiendo que primero revise la documentación antes de hacerlo. Es molesto
