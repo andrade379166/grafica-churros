@@ -18,7 +18,7 @@ _Escrita por Andrade. Última vez actualizada el 15 de mayo de 2025._
 
 ## Índice
 1. [Instalación](#instalación)
-   1. [Pautas para instalar GraficaChurros.](#pautas-para-instalar-graficachurros)
+   1. [Pautas para instalar GraficaChurros.](#pautas-para-instalar-y-usar-graficachurros)
    2. [Agregar a un proyecto de Dev-C++.](#agregar-a-un-proyecto-de-dev-c)
    3. [Agregar a un proyecto de CLion (o construido con CMake).](#agregar-a-un-proyecto-de-clion-o-construido-con-cmake)
 2. [Guía de uso.](#guía-de-uso)
