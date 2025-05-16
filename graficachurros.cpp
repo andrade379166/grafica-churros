@@ -9,7 +9,6 @@
  *  ====================================================================
  */
 
-
 #include "graficachurros.h"
 
 D2D1_FACTORY_OPTIONS factory_options = {
@@ -25,22 +24,7 @@ template <class T> void SafeRelease(T *pointer) {
 }
 
 
-struct {
-    WORD height;                                            // Main window height
-    WORD width;                                             // Main window width
-    bool mouse_inside;
-    struct {
-        size_t pos[2];                                      // Mouse position on the window
-        bool right_click;                                   // Mouse flag for right click state
-        bool left_click;                                    // Mouse flag for left click state
-    } mouse;
-} /* -----------------------------------------------------> */ window_properties;
 
-
-char                    window_class_name[] = "graficachurros";
-HINSTANCE               instance;
-HWND                    main_window;
-bool                    mouse_inside;
 
 
 
@@ -49,24 +33,24 @@ bool churro::mouse_is_on_screen() {
     return mouse_inside;
 }
 
-size_t churro::get_mouse_position_x() {
+int churro::get_mouse_position_x() {
     return window_properties.mouse.pos[0];
 }
 
-size_t churro::get_mouse_position_y() {
+int churro::get_mouse_position_y() {
     return window_properties.mouse.pos[1];
 }
 
-WORD churro::get_window_height() {
+int churro::get_window_height() {
     return window_properties.height;
 }
 
-WORD churro::get_window_width() {
+int churro::get_window_width() {
     return window_properties.width;
 }
 
 
-HRESULT churro::direct2D::start_render() {
+HRESULT churro::direct2D::_start_render() {
     HRESULT result = S_OK;
 
     if (factory == nullptr) {
@@ -86,7 +70,7 @@ void churro::direct2D::refresh() const {
     InvalidateRect(main_window, nullptr, TRUE);
 }
 
-HRESULT churro::direct2D::resize_canvas() {
+HRESULT churro::direct2D::_resize_canvas() {
     HRESULT result = S_OK;
 
     if (render_target == nullptr)
@@ -113,7 +97,7 @@ HRESULT churro::direct2D::resize_canvas() {
     return result;
 }
 
-HRESULT churro::direct2D::create_render_target() {
+HRESULT churro::direct2D::_create_render_target() {
     HRESULT result = S_OK;
     if (render_target == nullptr) {
         RECT rc;
@@ -132,14 +116,14 @@ HRESULT churro::direct2D::create_render_target() {
     return result;
 }
 
-HRESULT churro::direct2D::create_graphic_resources() {
+HRESULT churro::direct2D::_create_graphic_resources() {
     HRESULT result = S_OK;
-    result = create_render_target();
+    result = _create_render_target();
     if (FAILED(result)) return result;
     return result;
 }
 
-void churro::direct2D::flush_graphic_resources() {
+void churro::direct2D::_flush_graphic_resources() {
     for (auto &list : graphic_resource_map) {
         const auto element = &list.second;
         switch (element->type) {
@@ -181,8 +165,8 @@ void churro::direct2D::flush_graphic_resources() {
     graphic_resource_map.clear();
 }
 
-void churro::direct2D::discard_graphic_resources() {
-    flush_graphic_resources();
+void churro::direct2D::_discard_graphic_resources() {
+    _flush_graphic_resources();
     SafeRelease(render_target);
 }
 
@@ -191,21 +175,21 @@ void churro::direct2D::set_render_pipeline(RENDER_PIPELINE (*function)()) {
     render_pipeline = function;
 }
 
-HRESULT churro::direct2D::draw() {
+HRESULT churro::direct2D::_draw() {
     HRESULT result = S_OK;
 
     if (flush_graphics_resource_pool == true)
-        flush_graphic_resources();
+        _flush_graphic_resources();
 
     flush_graphics_resource_pool = false;
 
-    result = create_graphic_resources();
+    result = _create_graphic_resources();
     if (FAILED(result)) {
         render_pipeline_task_done = true;
         return result;
     }
 
-    result = resize_canvas();
+    result = _resize_canvas();
     if (FAILED(result)) {
         render_pipeline_task_done = true;
         return result;
@@ -229,7 +213,7 @@ HRESULT churro::direct2D::draw() {
 
 
     if (FAILED(result) || result == D2DERR_RECREATE_TARGET) {
-        discard_graphic_resources();
+        _discard_graphic_resources();
     }
 
     EndPaint(main_window, &paint_structure);
@@ -238,52 +222,16 @@ HRESULT churro::direct2D::draw() {
     return result;
 }
 
-void churro::direct2D::discard_factory() const {
+void churro::direct2D::_discard_factory() const {
     SafeRelease(factory);
 }
 
-HRESULT churro::direct2D::new_solid_color_brush(
-                const std::string &name,
-                const D2D1_COLOR_F color,
-                const D2D1_BRUSH_PROPERTIES &properties
-            ) {
-    HRESULT result = S_OK;
-    if (graphic_resource_map.find(name) != graphic_resource_map.end()) return result;
+D2D1::ColorF churro::direct2D::_color_from_hex(const std::string & color) {
+    if (!(color.size() == 7 || color.size() == 9)) throw std::invalid_argument("\"" +color + "\" is an invalid hexadecimal color");
+    if (color[0] != '#') throw std::invalid_argument("Mising hexadecimal hashtag at start");
 
-    GRAPHIC_RESOURCE new_brush;
-
-    result = render_target->CreateSolidColorBrush(color, properties, &new_brush.pointer.solid_color_brush);
-    if (FAILED(result)) return result;
-
-    new_brush.device_independent = false;
-    new_brush.type = GRAPHIC_RESOURCE::solid_color_brush;
-
-    graphic_resource_map[name] = new_brush;
-    return result;
-}
-
-HRESULT churro::direct2D::new_solid_color_brush(
-        const std::string &name,
-        const D2D1_COLOR_F color
-    ) {
-    HRESULT result = S_OK;
-    if (graphic_resource_map.find(name) != graphic_resource_map.end()) return result;
-
-    GRAPHIC_RESOURCE new_brush;
-
-    result = render_target->CreateSolidColorBrush(color, &new_brush.pointer.solid_color_brush);
-    if (FAILED(result)) return result;
-
-    new_brush.device_independent = false;
-    new_brush.type = GRAPHIC_RESOURCE::solid_color_brush;
-
-    graphic_resource_map[name] = new_brush;
-    return result;
-}
-
-D2D1::ColorF churro::direct2D::color_from_hex(const std::string & color) {
     size_t num = 0;
-    for (size_t i = 1; i < 7; ++i) {
+    for (size_t i = 1; i < color.size(); ++i) {
         num <<= 4;
         switch (color[i]) {
             case '0':               break;
@@ -312,17 +260,32 @@ D2D1::ColorF churro::direct2D::color_from_hex(const std::string & color) {
         }
     }
 
+    if (color.size() == 7) {
+        float rgb_color[] = {
+            static_cast<float>(num >> 16),
+            static_cast<float>((num >> 8) % 256),
+            static_cast<float>(num % 256)
+        };
+        rgb_color[0] /= 255.0f;
+        rgb_color[1] /= 255.0f;
+        rgb_color[2] /= 255.0f;
+
+
+        return {rgb_color[0], rgb_color[1], rgb_color[2]};
+    }
     float rgb_color[] = {
-        static_cast<float>( num >> 16),
-        static_cast<float>((num >> 8 ) % 256),
-        static_cast<float>( num        % 256)
+        static_cast<float>( num >> 24      ),
+        static_cast<float>( num >> 16 % 256),
+        static_cast<float>((num >> 8) % 256),
+        static_cast<float>( num       % 256)
     };
     rgb_color[0] /= 255.0f;
     rgb_color[1] /= 255.0f;
     rgb_color[2] /= 255.0f;
+    rgb_color[3] /= 255.0f;
 
 
-    return {rgb_color[0], rgb_color[1], rgb_color[2]};
+    return {rgb_color[0], rgb_color[1], rgb_color[2], rgb_color[3]};
 }
 
 HRESULT churro::direct2D::new_solid_color_brush(
@@ -330,15 +293,13 @@ HRESULT churro::direct2D::new_solid_color_brush(
         const std::string &color
     ) {
     HRESULT result = S_OK;
-    if (color.size() != 7) throw std::invalid_argument("Invalid hexadecimal color");
-    if (color[0] != '#') throw std::invalid_argument("Mising hexadecimal hashtag at start");
 
     if (graphic_resource_map.find(name) != graphic_resource_map.end()) return result;
 
 
     GRAPHIC_RESOURCE new_brush;
     result = render_target->CreateSolidColorBrush(
-        color_from_hex(color),
+        _color_from_hex(color),
         &new_brush.pointer.solid_color_brush
     );
 
@@ -361,7 +322,7 @@ HRESULT churro::direct2D::ellipse(
 
     HRESULT result = S_OK;
     if (graphic_resource_map.find(name) == graphic_resource_map.end())
-        result = new_ellipse(name);
+        result = _new_ellipse(name);
 
     if (graphic_resource_map[name].type != GRAPHIC_RESOURCE::ellipse) return S_FALSE;
 
@@ -383,7 +344,7 @@ HRESULT churro::direct2D::rectangle(
 
     HRESULT result = S_OK;
     if (graphic_resource_map.find(name) == graphic_resource_map.end())
-        result = new_rectangle(name);
+        result = _new_rectangle(name);
     if (graphic_resource_map[name].type != GRAPHIC_RESOURCE::rectangle) return S_FALSE;
     const auto new_rectangle = D2D1::RectF(x, y, x + width, y + height);
 
@@ -393,62 +354,31 @@ HRESULT churro::direct2D::rectangle(
 
 }
 
-ID2D1SolidColorBrush* churro::direct2D::solid_color_brush(
-        const std::string& name
-    ) {
-    return graphic_resource_map[name].pointer.solid_color_brush;
+
+ID2D1Brush* churro::direct2D::_brush(const std::string& name) {
+    if (graphic_resource_map.find(name) == graphic_resource_map.end())
+        throw std::invalid_argument("No graphic resource named \"" + name + "\" was found");
+    switch (graphic_resource_map[name].type) {
+        case GRAPHIC_RESOURCE::solid_color_brush:{
+            return graphic_resource_map[name].pointer.solid_color_brush;
+        }
+        case GRAPHIC_RESOURCE::linear_brush:{
+            return graphic_resource_map[name].pointer.linear_brush;
+        }
+        case GRAPHIC_RESOURCE::radial_brush:{
+            return graphic_resource_map[name].pointer.radial_brush;
+        }
+        case GRAPHIC_RESOURCE::brush: {
+            return graphic_resource_map[name].pointer.brush;
+        }
+        default: {
+            throw std::invalid_argument("The graphic resource \"" + name + "\" is not a brush");
+        }
+    }
 }
 
-ID2D1Brush* churro::direct2D::brush(const std::string& name) {
-    return graphic_resource_map[name].pointer.brush;
-}
 
-void churro::direct2D::draw_line(
-        ID2D1SolidColorBrush *solid_color_brush,
-        const float stroke_width,
-        const float start_x,
-        const float start_y,
-        const float end_x,
-        const float end_y
-    ) const {
-    render_target->DrawLine(
-        D2D1::Point2F(start_x, start_y),
-        D2D1::Point2F(end_x,end_y),
-        solid_color_brush, stroke_width
-    );
-}
-
-void churro::direct2D::draw_line(
-        ID2D1LinearGradientBrush *linear_gradient_brush,
-        const float stroke_width,
-        const float start_x,
-        const float start_y,
-        const float end_x,
-        const float end_y
-    ) const {
-    render_target->DrawLine(
-        D2D1::Point2F(start_x, start_y),
-        D2D1::Point2F(end_x,end_y),
-        linear_gradient_brush, stroke_width
-    );
-}
-
-void churro::direct2D::draw_line(
-        ID2D1RadialGradientBrush *radial_gradient_brush,
-        const float stroke_width,
-        const float start_x,
-        const float start_y,
-        const float end_x,
-        const float end_y
-    ) const {
-    render_target->DrawLine(
-        D2D1::Point2F(start_x, start_y),
-        D2D1::Point2F(end_x,end_y),
-        radial_gradient_brush, stroke_width
-    );
-}
-
-void churro::direct2D::draw_line(
+void churro::direct2D::_draw_line(
         ID2D1Brush *brush,
         const float stroke_width,
         const float start_x,
@@ -463,33 +393,6 @@ void churro::direct2D::draw_line(
     );
 }
 
-void churro::direct2D::outline_geometry(
-        const std::string &name,
-        ID2D1SolidColorBrush *solid_color_brush,
-        const float stroke_width
-    ) {
-    if (graphic_resource_map.find(name) == graphic_resource_map.end())
-        throw std::runtime_error("Graphic resource not found.");
-    switch (graphic_resource_map[name].type) {
-        case GRAPHIC_RESOURCE::rectangle: {
-            render_target->DrawRectangle(graphic_resource_map[name].pointer.rectangle, solid_color_brush, stroke_width);
-            break;
-        }
-        case GRAPHIC_RESOURCE::ellipse: {
-            render_target->DrawEllipse(graphic_resource_map[name].pointer.ellipse, solid_color_brush, stroke_width);
-            break;
-        }
-        case GRAPHIC_RESOURCE::bitmap: {}
-
-        case GRAPHIC_RESOURCE::brush:
-        case GRAPHIC_RESOURCE::radial_brush:
-        case GRAPHIC_RESOURCE::stroke_style:
-        case GRAPHIC_RESOURCE::linear_brush:
-        case GRAPHIC_RESOURCE::solid_color_brush:
-        default: {}
-    }
-
-}
 
 void churro::direct2D::outline_geometry(
         const std::string &name,
@@ -497,30 +400,9 @@ void churro::direct2D::outline_geometry(
         const float stroke_width
     ) {
     if (graphic_resource_map.find(name) == graphic_resource_map.end())
-        throw std::runtime_error("Graphic resource not found.");
+        throw std::runtime_error("Graphic resource \"" + name + "\" not found.");
 
-    if (graphic_resource_map.find(brush) == graphic_resource_map.end())
-        throw std::runtime_error("Brush graphic resource not found.");
-
-    ID2D1Brush* brush_to_use = nullptr;
-
-    switch (graphic_resource_map[brush].type) {
-        case GRAPHIC_RESOURCE::brush: {
-            brush_to_use = graphic_resource_map[brush].pointer.brush;
-            break;
-        }
-        case GRAPHIC_RESOURCE::radial_brush: {
-            brush_to_use = graphic_resource_map[brush].pointer.radial_brush;
-            break;
-        }
-        case GRAPHIC_RESOURCE::solid_color_brush: {
-            brush_to_use = graphic_resource_map[brush].pointer.solid_color_brush;
-            break;
-        }
-        default: {
-            throw std::runtime_error("The graphic resource used is not a brush");
-        }
-    }
+    ID2D1Brush* brush_to_use = _brush(brush);
 
     switch (graphic_resource_map[name].type) {
         case GRAPHIC_RESOURCE::rectangle: {
@@ -538,7 +420,9 @@ void churro::direct2D::outline_geometry(
         case GRAPHIC_RESOURCE::stroke_style:
         case GRAPHIC_RESOURCE::linear_brush:
         case GRAPHIC_RESOURCE::solid_color_brush:
-        default: {}
+        default: {
+            throw std::runtime_error("Brush graphic resource \"" + name + "\" is not a geometric figure.");
+        }
     }
 
 }
@@ -546,28 +430,10 @@ void churro::direct2D::outline_geometry(
         const std::string &name,
         const std::string& brush
     ) {
-    if (graphic_resource_map.find(brush) == graphic_resource_map.end())
-        throw std::runtime_error("Brush graphic resource not found.");
+    if (graphic_resource_map.find(name) == graphic_resource_map.end())
+        throw std::runtime_error("Graphic resource \"" + name + "\" not found.");
 
-    ID2D1Brush* brush_to_use = nullptr;
-
-    switch (graphic_resource_map[brush].type) {
-        case GRAPHIC_RESOURCE::brush: {
-            brush_to_use = graphic_resource_map[brush].pointer.brush;
-            break;
-        }
-        case GRAPHIC_RESOURCE::radial_brush: {
-            brush_to_use = graphic_resource_map[brush].pointer.radial_brush;
-            break;
-        }
-        case GRAPHIC_RESOURCE::solid_color_brush: {
-            brush_to_use = graphic_resource_map[brush].pointer.solid_color_brush;
-            break;
-        }
-        default: {
-            throw std::runtime_error("The graphic resource used is not a brush");
-        }
-    }
+    ID2D1Brush* brush_to_use = _brush(brush);
 
     switch (graphic_resource_map[name].type) {
         case GRAPHIC_RESOURCE::rectangle: {
@@ -585,54 +451,14 @@ void churro::direct2D::outline_geometry(
         case GRAPHIC_RESOURCE::linear_brush:
         case GRAPHIC_RESOURCE::solid_color_brush:
         default:
-            throw std::runtime_error("The graphic resource used is not a geometric figure");
+            throw std::runtime_error("The graphic resource \"" + name + "\" is not a geometric figure");
     }
 }
 
-void churro::direct2D::fill_geometry(const std::string &name, ID2D1SolidColorBrush *solid_color_brush) {
-    switch (graphic_resource_map[name].type) {
-        case GRAPHIC_RESOURCE::rectangle: {
-            render_target->FillRectangle(graphic_resource_map[name].pointer.rectangle, solid_color_brush);
-            break;
-        }
-        case GRAPHIC_RESOURCE::ellipse: {
-            render_target->FillEllipse(graphic_resource_map[name].pointer.ellipse, solid_color_brush);
-            break;
-        }
-        case GRAPHIC_RESOURCE::bitmap: {}
-
-        case GRAPHIC_RESOURCE::brush:
-        case GRAPHIC_RESOURCE::radial_brush:
-        case GRAPHIC_RESOURCE::stroke_style:
-        case GRAPHIC_RESOURCE::linear_brush:
-        case GRAPHIC_RESOURCE::solid_color_brush:
-        default: {}
-    }
-}
 
 void churro::direct2D::fill_geometry(const std::string &name, const std::string& brush) {
-    if (graphic_resource_map.find(brush) == graphic_resource_map.end())
-        throw std::runtime_error("Brush graphic resource not found.");
 
-    ID2D1Brush* brush_to_use = nullptr;
-
-    switch (graphic_resource_map[brush].type) {
-        case GRAPHIC_RESOURCE::brush: {
-            brush_to_use = graphic_resource_map[brush].pointer.brush;
-            break;
-        }
-        case GRAPHIC_RESOURCE::radial_brush: {
-            brush_to_use = graphic_resource_map[brush].pointer.radial_brush;
-            break;
-        }
-        case GRAPHIC_RESOURCE::solid_color_brush: {
-            brush_to_use = graphic_resource_map[brush].pointer.solid_color_brush;
-            break;
-        }
-        default: {
-            throw std::runtime_error("The graphic resource used is not a brush");
-        }
-    }
+    ID2D1Brush* brush_to_use = direct2D::_brush(brush);
 
     switch (graphic_resource_map[name].type) {
         case GRAPHIC_RESOURCE::rectangle: {
@@ -650,11 +476,11 @@ void churro::direct2D::fill_geometry(const std::string &name, const std::string&
         case GRAPHIC_RESOURCE::linear_brush:
         case GRAPHIC_RESOURCE::solid_color_brush:
         default:
-            throw std::runtime_error("The graphic resource used is not a geometric figure");
+            throw std::runtime_error("The graphic resource \"" + name + "\" used is not a geometric figure");
     }
 }
 
-HRESULT churro::direct2D::new_ellipse(
+HRESULT churro::direct2D::_new_ellipse(
         const std::string &name
     ) {
     constexpr HRESULT result = S_OK;
@@ -670,7 +496,7 @@ HRESULT churro::direct2D::new_ellipse(
     return result;
 }
 
-HRESULT churro::direct2D::new_rectangle(
+HRESULT churro::direct2D::_new_rectangle(
         const std::string &name
     ) {
     constexpr HRESULT result = S_OK;
@@ -686,6 +512,21 @@ HRESULT churro::direct2D::new_rectangle(
     return result;
 }
 
+void churro::direct2D::draw_line(
+        const std::string& brush,
+        const float stroke_width,
+        const float start_x,
+        const float start_y,
+        const float end_x,
+        const float end_y
+    ) {
+    render_target->DrawLine(
+        D2D1::Point2F(start_x, start_y),
+        D2D1::Point2F(end_x,end_y),
+        _brush(brush), stroke_width
+    );
+}
+
 
 int WINAPI WinMain (
         HINSTANCE hInstance,
@@ -693,7 +534,7 @@ int WINAPI WinMain (
         LPSTR lpCmdLine,
         int nShowCmd
     ) {
-
+    using namespace churro;
     instance = hInstance;
 
     static WNDCLASSEX /* =========================> */ window_class;
@@ -758,6 +599,7 @@ LRESULT CALLBACK WindowProcedure(
         WPARAM wParam,
         LPARAM lParam
     ) {
+    using namespace churro;
     switch (message) {
         case WM_GETMINMAXINFO: {
             const auto lpMMI = reinterpret_cast<LPMINMAXINFO>(lParam);
@@ -765,11 +607,11 @@ LRESULT CALLBACK WindowProcedure(
             lpMMI->ptMinTrackSize.y = WINDOW_MIN_Y;
         }
         case WM_CREATE: {
-            if (FAILED(churro::direct_2d.start_render())) /* -------------> */ return -1;
+            if (FAILED(churro::direct_2d._start_render())) /* -------------> */ return -1;
             break;
         }
         case WM_SIZE: {
-            if (FAILED(churro::direct_2d.create_render_target()))   return -1;
+            if (FAILED(churro::direct_2d._create_render_target()))   return -1;
 
             const WORD width = LOWORD(lParam);
             const WORD height = HIWORD(lParam);
@@ -779,7 +621,7 @@ LRESULT CALLBACK WindowProcedure(
             window_properties.width = width;
             window_properties.height = height;
 
-            if (FAILED(churro::direct_2d.resize_canvas())) return -1;
+            if (FAILED(churro::direct_2d._resize_canvas())) return -1;
 
             break;
         }
@@ -794,7 +636,7 @@ LRESULT CALLBACK WindowProcedure(
             window_properties.height = height;
             window_properties.width = width;
 
-            churro::direct_2d.refresh();
+            direct_2d.refresh();
             break;
         }
 
@@ -817,7 +659,7 @@ LRESULT CALLBACK WindowProcedure(
             break;
         }
         case WM_PAINT: {
-            if (FAILED(churro::direct_2d.draw())) return -1;
+            if (FAILED(churro::direct_2d._draw())) return -1;
             break;
         }
         case WM_MOUSELEAVE: {
@@ -841,8 +683,8 @@ LRESULT CALLBACK WindowProcedure(
             break;
         }
         case WM_DESTROY: {
-            churro::direct_2d.discard_graphic_resources();
-            churro::direct_2d.discard_factory();
+            direct_2d._discard_graphic_resources();
+            direct_2d._discard_factory();
             PostQuitMessage(0);
             break;
         }
