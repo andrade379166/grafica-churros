@@ -68,7 +68,7 @@ Además de esto, la librería requiere que el compilador y las librerías están
    1. Abra **Proyecto > Agregar a proyecto...** y seleccione los archivos `graficachurros.h` y `graficachurros.cpp`.
 5. Agregue la siguiente línea al encabezado del archivo `main.cpp`:
    
-   ```c
+   ```cpp
    #include "graficachurros.h"
    ```
    
@@ -97,7 +97,7 @@ Además de esto, la librería requiere que el compilador y las librerías están
 4. Agregue los archivos de la librería a la carpeta del proyecto.
 5. Agregue la siguiente línea al encabezado del archivo `main.cpp`:
    
-   ```c
+   ```cpp
    #include "graficachurros.h"
    ```
 
@@ -120,6 +120,7 @@ Además de esto, la librería requiere que el compilador y las librerías están
 ### Primeros pasos para usar GraficaChurros.
 Tras instalar la librería, use el siguiente ejemplo de código en `main.cpp` para probar que la librería esté instalada correctamente:
 ```cpp
+
 #include "graficachurros.h"
 
 int main() {
